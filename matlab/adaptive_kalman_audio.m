@@ -1,13 +1,15 @@
+clear all; close all; clc;
+
 % State space model is defined by following
 % x_k+1 = x_k + v_k, where v_k is the process noise
 % y_k+1 = x_k+1 + w_k+1, where w_k is the measurement noise
 
 %% input the audio files
-[input_signal_i, fs_i] = audioread("../data/babble_0dB.opus");
-[input_signal1, fs1] = audioread("../data/babble_10dB.opus");
+[input_signal_i, fs_i] = audioread("../data/street_0dB.opus");
+[input_signal1, fs1] = audioread("../data/street_10dB.opus");
 
 % averaging size for initial state estimate
-N = 5;
+N = 10;
 
 % fixed buffer size
 T = 10000;
@@ -41,6 +43,9 @@ R = cov(w_hat);
 % do dummy sinewave stuff; get first N sinewave complexes for x_hat
 x0 = zeros(T, N);
 for k = 1:N
+    if k > data_count
+        break;
+    end
     x0(:,k) = input_signal_i(1+((k-1)*T) : T+((k-1)*T));
 end
 x_hat = mean(x0, 2); % initial estimated state
@@ -93,17 +98,47 @@ end
 % subtract estimated with recorded input to extract noise
 noise = input_signal1 - input_estimate;
 
-% subtract noise from original signal to get clean output
-output_signal = input_signal_i - noise; % todo: fix this
+% Spectrally subtract the noise from input noisy signal
+input_signal_i_freq = stft(input_signal1);
+input_signal_i_freq_mag = abs(input_signal_i_freq);% mag spectrum of input
+noise_freq_mag = abs(stft(noise)); % mag spectrum of noise
+alpha = 0.5; % strength of noise cancellation
+output_signal_freq_mag = max(0, input_signal_i_freq_mag - alpha * noise_freq_mag);
+output_signal_freq = output_signal_freq_mag .* exp(1i * angle(input_signal_i_freq)); % 
+output_signal = real(istft(output_signal_freq));
 
 % Plot results
-t = 1:size(output_signal);
+% t = 1:size(input_signal_i);
+% figure;
+% subplot(2,1,1);
+% plot(t, input_signal_i, 'b', t, noise, 'r');
+% xlabel('Time');
+% ylabel('Signal');
+% legend('Input Signal', 'Noise');
+% title('Input Signal vs Noise');
+
+t = 1:size(input_signal_i);
 figure;
-subplot(2,1,1);
-plot(t, input_signal_i, 'b', t, noise, 'r');
+subplot(3,1,1);
+plot(t, input_signal_i, 'b');
 xlabel('Time');
 ylabel('Signal');
-legend('Input Signal', 'Estimated Signal');
-title('Input Signal vs Estimated Signal');
+legend('Input Signal (Actual/Outer)');
 
-sound(output_signal, fs_i);
+t = 1:size(input_signal1);
+subplot(3,1,2);
+plot(t, input_signal1, 'b');
+xlabel('Time');
+ylabel('Signal');
+legend('Input Signal (Control/Inner)');
+
+t = 1:size(output_signal);
+subplot(3,1,3);
+plot(t, output_signal, 'r');
+xlabel('Time');
+ylabel('Signal');
+legend('Output Signal');
+title('Input Signal vs Output Signal');
+
+% sound(output_signal, fs_i);
+audiowrite('clean_street.opus', output_signal, fs_i);
