@@ -40,7 +40,7 @@ w_hat = y - y_i_hat; % eq3
 R = cov(w_hat);
 
 %% Initialize state estimate and covariance
-% do dummy sinewave stuff; get first N sinewave complexes for x_hat
+% get first N sinewave complexes onto x0 var
 x0 = zeros(T, N);
 for k = 1:N
     if k > data_count
@@ -52,7 +52,7 @@ x_hat = mean(x0, 2); % initial estimated state
 
 P = cov(x_hat); % initial estimated state covariance
 Q = 0.01; % initial process covariance
-K = zeros(1, T); % Kalman gain
+K = zeros(1, T); % initialize Kalman gain
 Y_i = zeros(T, 1);
 
 %% iterate through the recorded data
@@ -74,7 +74,7 @@ for k = 2:data_count
         Q = 0;
     end
 
-    %% estimate measurement noise covariance
+    %% update measurement noise covariance
     % update y buffer to hold latest audio sample
     y = input_signal_i(1+((k-1)*T) : T+((k-1)*T));
     y1 = input_signal1(1+((k-1)*T) : T+((k-1)*T));
@@ -92,6 +92,7 @@ for k = 2:data_count
     % Measurement noise covariance
     R = cov(w_hat); % eq4
 
+    % Assign all estimated values of x_hat in place
     input_estimate(1+((k-1)*T) : T+((k-1)*T)) = x_hat;
 end
 
