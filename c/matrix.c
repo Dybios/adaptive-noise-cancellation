@@ -183,7 +183,7 @@ void inverse(double *matrix, double *inverseMatrix, int n) {
 // Function to calculate the covariance of a matrix
 void covariance(double *matrix, double *covariance_mat, int rows, int cols) {
     double covariance[rows][cols];
-    double mean[rows] = {0};
+    double mean[rows];
 
     // Calculate column-wise mean
     for (int j = 0; j < cols; j++) {

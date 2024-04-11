@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
+#include <ctype.h>
 #include "matrix.h"
 
-#define T 1024 // Length between Q complexes TODO: Use pan-tompkins to find this instead
+#define T 600 // Length between Q complexes TODO: Use pan-tompkins to find this instead
 
-#define N 10 // Averaging for state vector
+#define N 5 // Averaging for state vector
 #define ECG_LEADS 12
 
 double x_hat[T][1];     // State vector
@@ -20,6 +22,8 @@ int main(int argc, char *argv[]) {
     const int ch = 1;
     const int frame = 128;
     const int shift = 32;
+    int rows = 0, cols = 0;
+    char line[ECG_LEADS * 100]; // Buffer for a line, assuming max 100 characters per field
 
     // Initialize Q
     Q = 0.005;
@@ -32,8 +36,8 @@ int main(int argc, char *argv[]) {
     FILE *output = NULL;
     if (argc == 1) {
        // Use defaults
-       input = fopen("data.csv", "rb");
-       output = fopen("data/clean_output.wav", "wb");
+       input = fopen("../data/data_synthesized.csv", "r");
+       output = fopen("../data/clean_output", "w");
     }
     else if (argc > 1 && argc < 3) {
        printf("Not enough arguments.\n");
@@ -48,24 +52,69 @@ int main(int argc, char *argv[]) {
        output = fopen(argv[3], "wb");
     }
 
-    if (input1 == NULL || input2 == NULL || output == NULL) {
+    if (input == NULL || output == NULL) {
            printf("Cannot open file.\n");
-    }	
-	
-    // Get the file size
-    fseek(input1, 0, SEEK_END);
-    int file_size = ftell(input1);
+    }
+
+    // Count rows and columns
+    while (fgets(line, sizeof(line), input) != NULL) {
+        cols = 0;
+        char *token = strtok(line, ",");
+        while (token != NULL) {
+            cols++;
+            token = strtok(NULL, ",");
+        }
+        rows++; // data in each channel length
+    }
+
+    fseek(input, 0, SEEK_SET); // Move back to beginning of file
+
+    // Allocate memory for the 2D array
+    double **data = (double **)malloc(rows * sizeof(double *));
+    for (int i = 0; i < rows; i++) {
+        data[i] = (double *)malloc(cols * sizeof(double));
+    }
+
+    // Read the CSV data into the array
+    int i = 0, j = 0;
+    while (fgets(line, sizeof(line), input) != NULL) {
+        j = 0;
+        char *token = strtok(line, ",");
+        while (token != NULL) {
+            data[i][j++] = atof(token);
+            token = strtok(NULL, ",");
+        }
+        i++;
+    }
+    fclose(input);
+
+    // Example: Print the array contents
+    printf("rows (data/channel) = %d\tcols (channels) = %d\n", rows, cols);
 
     // get aligned buffer loop counter
-    int rem = data_size % T;
-    int loop_count = (file_size + T - rem) / T;
+    int rem = rows % T;
+    int loop_count = (rows + T - rem) / T;
     printf("Loop count = %d\n", loop_count);
 
     // read the 12 lead ECG data to 12 input channels
-    double *in1, *in2, *in3, *in4, *in5, *in6, *in7, *in8, *in9, *in10, *in11, *in12;
-    // TODO: read 12 ecg lead data into each of in1-in12
-    fread(in_short1, data_size, 2, input);
-    fclose(input1);
+    double in1[rows], in2[rows], in3[rows], in4[rows],
+           in5[rows], in6[rows], in7[rows], in8[rows],
+           in9[rows], in10[rows], in11[rows], in12[rows];
+    for (int i = 0; i < rows; i++) {
+        in1[i] = data[i][0];
+        in2[i] = data[i][1];
+        in3[i] = data[i][2];
+        in4[i] = data[i][3];
+        in5[i] = data[i][4];
+        in6[i] = data[i][5];
+        in7[i] = data[i][6];
+        in8[i] = data[i][7];
+        in9[i] = data[i][8];
+        in10[i] = data[i][9];
+        in11[i] = data[i][10];
+        in12[i] = data[i][11];
+    }
+
 
    // Initial state estimate and covariance
    double x0[T][N];
@@ -82,7 +131,7 @@ int main(int argc, char *argv[]) {
 
    double y[T][1], y1[T][1], y2[T][1], y3[T][1],
           y4[T][1], y5[T][1], y6[T][1], y7[T][1],
-		  y8[T][1], y9[T][1], y10[T][1], y11[T][1];
+          y8[T][1], y9[T][1], y10[T][1], y11[T][1];
 
    // Run the Adaptive Kalman filter
    for (int count = 0; count < loop_count; count++) {
@@ -105,37 +154,38 @@ int main(int argc, char *argv[]) {
 
        // eq4
        double y_inv[ECG_LEADS][ECG_LEADS], Y_transpose[ECG_LEADS][T], Y_res[ECG_LEADS][ECG_LEADS], Y_res2[1][T], y_coeff_hat[ECG_LEADS][1];
-       memcpy(Y, y1[0], sizeof(y1));
-       memcpy(Y + 1, y2[0], sizeof(y2));
-       memcpy(Y + 2, y3[0], sizeof(y3));
-       memcpy(Y + 3, y4[0], sizeof(y4));
-       memcpy(Y + 4, y5[0], sizeof(y5));
-       memcpy(Y + 5, y6[0], sizeof(y6));
-       memcpy(Y + 6, y7[0], sizeof(y7));
-       memcpy(Y + 7, y8[0], sizeof(y8));
-       memcpy(Y + 8, y9[0], sizeof(y9));
-       memcpy(Y + 9, y10[0], sizeof(y10));
-       memcpy(Y + 10, y11[0], sizeof(y11));
-       memcpy(Y + 11, y12[0], sizeof(y12));
+       for (int row = 0; row < T; row++) {
+           Y[row][0] = y1[row][0];
+           Y[row][1] = y1[row][1];
+           Y[row][2] = y1[row][2];
+           Y[row][3] = y1[row][3];
+           Y[row][4] = y1[row][4];
+           Y[row][5] = y1[row][5];
+           Y[row][6] = y1[row][6];
+           Y[row][7] = y1[row][7];
+           Y[row][8] = y1[row][8];
+           Y[row][9] = y1[row][9];
+           Y[row][10] = y1[row][10];
+           Y[row][11] = y1[row][11];
+       }
 
-       transpose((double *)Y, (double *)Y_transpose, T, 1);
+       transpose((double *)Y, (double *)Y_transpose, T, ECG_LEADS);
        multiply((double *)Y_transpose, (double *)Y, (double *)Y_res, ECG_LEADS, T, ECG_LEADS);
        inverse((double *)Y_res, (double *)y_inv, ECG_LEADS);
        for (int rows = 0; rows < ECG_LEADS; rows++) {
            for (int cols = 0; cols < T; cols++) {
                Y_res2[rows][cols] = y_inv[rows][rows] * Y_transpose[rows][cols];
            }
-	   }
+       }
        multiply((double *) Y_res2, (double *)y, (double *)y_coeff_hat, ECG_LEADS, T, 1);
 
        double y_i_hat[T][1];
-	   multiply((double *)Y, (double *)y_coeff_hat, (double *)y_i_hat, T, ECG_LEADS, 1);
+       multiply((double *)Y, (double *)y_coeff_hat, (double *)y_i_hat, T, ECG_LEADS, 1);
        subtract((double *)y, (double *) y_i_hat, (double *)w_hat, T, 1); // eq3
 
        double R_mat[1][1];
        covariance((double *)w_hat, (double*)R_mat, T, 1);
        R = R_mat[0][0];
-
 
        double K_scalar = (P + Q) / (R + P + Q); // eq9
        // eq7
@@ -146,6 +196,8 @@ int main(int argc, char *argv[]) {
        }
        add((double *) x_hat, (double *)temp_mul, (double *)x_hat, T, 1);
        P = P + Q - (K_scalar * (P + Q)); // eq8
+
+//       printf("P=%f,Q=%f,R=%f\n", P, Q, R);
 
        // update process noise covariance for each incoming input
        double model_residual[T][1], residual_mean[T][1], residual_transpose[1][T], Q_coeff[1][1];
@@ -161,23 +213,23 @@ int main(int argc, char *argv[]) {
        multiply((double *)residual_transpose, (double *)residual_mean, (double *)Q_coeff, 1, T, 1);
        Q = fmax(0, (Q_coeff[0][0] / T) - P - R); // eq14
 
+//       print_matrix((double*)x_hat, T, 1);
        // Append the output buffer to output file
-       fseek(output, 0, SEEK_END);
-       fwrite(x_hat, sizeof(double), 2, output);
+//       fseek(output, 0, SEEK_END);
+//       fwrite(x_hat, sizeof(double), 1, output);
+       for (int i = 0; i < T; i++) {
+           fprintf(output, "%f%c", x_hat[i][0], '\n');
+       }
+       fprintf(output, "\n");  // Add newline at the end of each row
    }
 
-   free(in1);
-   free(in2);
-   free(in3);
-   free(in4);
-   free(in5);
-   free(in6);
-   free(in7);
-   free(in8);
-   free(in9);
-   free(in10);
-   free(in11);
-   free(in12);
+
+   // Free the allocated memory
+   for (int i = 0; i < rows; i++) {
+       free(data[i]);
+   }
+   free(data);
+
    fclose(output);
    return 0;
 }
