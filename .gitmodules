@@ -1,0 +1,6 @@
+[submodule "c/filter-c"]
+	path = c/filter-c
+	url = https://github.com/adis300/filter-c
+[submodule "c/qrs_detector"]
+	path = c/qrs_detector
+	url = https://github.com/Dybios/qrs_detector
