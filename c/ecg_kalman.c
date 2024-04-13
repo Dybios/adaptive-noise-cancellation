@@ -13,6 +13,7 @@
 static int T;
 
 int main(int argc, char *argv[]) {
+    double sampling_rate = 360.00;
     int rows = 0, cols = 0;
     char line[ECG_LEADS * 100];
 
@@ -24,22 +25,22 @@ int main(int argc, char *argv[]) {
     FILE *output = NULL;
     if (argc == 1) {
        // Use defaults
-       input = fopen("../data/data_synthesized_0dB.csv", "r");
+       input = fopen("../data/data_synthesized_0dB_64k.csv", "r");
        output_preprocess = fopen("../data/output/preprocessed.csv", "w");
        output = fopen("../data/output/clean_output.csv", "w");
     }
-    else if (argc > 1 && argc < 2) {
+    else if (argc > 1 && argc < 3) {
        printf("Not enough arguments.\n");
        exit(1);
     }
-    else if (argc > 2) {
+    else if (argc > 3) {
        printf("Too many arguments.\n");
        exit(1);
     }
     else {
        input = fopen(argv[1], "r");
-       output_preprocess = fopen("../data/output/preprocessed.csv", "w");
        output = fopen(argv[2], "w");
+       output_preprocess = fopen("../data/output/preprocessed.csv", "w");
     }
 
     if (input == NULL || output_preprocess == NULL || output == NULL) {
@@ -78,24 +79,27 @@ int main(int argc, char *argv[]) {
     }
     fclose(input);
 
+    // Example: Print the array contents
+    printf("rows (data/channel) = %d\tcols (channels) = %d\n", rows, cols);
+
     /** Once the data is stored in array, sort the data by channel onto individal arrays.
      *  These are later used as inputs for filter operation.
      */
     // read the 12 lead ECG data to 12 input channels
     double *in1, *in2, *in3, *in4, *in5, *in6,
            *in7, *in8, *in9, *in10, *in11, *in12;
-    in1 = (double *) malloc(sizeof(double[rows]);
-    in2 = (double *) malloc(sizeof(double[rows]);
-    in3 = (double *) malloc(sizeof(double[rows]);
-    in4 = (double *) malloc(sizeof(double[rows]);
-    in5 = (double *) malloc(sizeof(double[rows]);
-    in6 = (double *) malloc(sizeof(double[rows]);
-    in7 = (double *) malloc(sizeof(double[rows]);
-    in8 = (double *) malloc(sizeof(double[rows]);
-    in9 = (double *) malloc(sizeof(double[rows]);
-    in10 = (double *) malloc(sizeof(double[rows]);
-    in11 = (double *) malloc(sizeof(double[rows]);
-    in12 = (double *) malloc(sizeof(double[rows]);
+    in1 = (double *) malloc(sizeof(double[rows]));
+    in2 = (double *) malloc(sizeof(double[rows]));
+    in3 = (double *) malloc(sizeof(double[rows]));
+    in4 = (double *) malloc(sizeof(double[rows]));
+    in5 = (double *) malloc(sizeof(double[rows]));
+    in6 = (double *) malloc(sizeof(double[rows]));
+    in7 = (double *) malloc(sizeof(double[rows]));
+    in8 = (double *) malloc(sizeof(double[rows]));
+    in9 = (double *) malloc(sizeof(double[rows]));
+    in10 = (double *) malloc(sizeof(double[rows]));
+    in11 = (double *) malloc(sizeof(double[rows]));
+    in12 = (double *) malloc(sizeof(double[rows]));
 
     for (int i = 0; i < rows; i++) {
         in1[i] = data[i][0];
@@ -124,21 +128,21 @@ int main(int argc, char *argv[]) {
      */
 
     /* High pass filter with 0.5Hz cutoff */
-    BWHighPass* hp_filter = create_bw_high_pass_filter(4, 360, 0.5);
+    BWHighPass* hp_filter = create_bw_high_pass_filter(4, (int)sampling_rate, 0.5);
     for (int i = 0; i < rows; i++) {
         in1[i] = bw_high_pass(hp_filter, in1[i]);
     }
     free_bw_high_pass(hp_filter);
 
     /* Low pass filter with 0.5Hz cutoff */
-    BWLowPass* lp_filter = create_bw_low_pass_filter(4, 360, 90);
+    BWLowPass* lp_filter = create_bw_low_pass_filter(4, (int)sampling_rate, 90);
     for (int i = 0; i < rows; i++) {
         in1[i] = bw_low_pass(lp_filter, in1[i]);
     }
     free_bw_low_pass(lp_filter);
 
     /* Notch filter centered around 50Hz for powerline/baseline wander */
-    BWBandPass* bp_filter = create_bw_band_pass_filter(4, 360, 4, 61);
+    BWBandPass* bp_filter = create_bw_band_pass_filter(4, (int)sampling_rate, 4, 61);
     for (int i = 0; i < rows; i++) {
         in1[i] = bw_band_pass(bp_filter, in1[i]);
     }
@@ -157,8 +161,7 @@ int main(int argc, char *argv[]) {
      *  of about 2%. For this project, the length between all R peaks is averaged and a 2% error is factored into it
      *  for allowing overlap between ECG signals.
      */
-    char result[buff_size]; // Dummy as we do not need this.
-    double sampling_rate = 360.00;
+    char result[rows]; // Dummy as we do not need this.
     T = DetectQrsPeaks(in1, rows, result, sampling_rate);
     T -= 0.02 * T;
     printf("T = %d\n", T);
@@ -279,7 +282,7 @@ int main(int argc, char *argv[]) {
        /** EQ7: The next (k+1)th state estimate, x̂(k + 1) = x̂(k) + [K(k + 1) * [y(k + 1) − x̂(k)]]
         *  This updates the state estimate using the noisy input and the Kalman Gain previously calculated.
         */
-       double temp_sub[T][1], temp_mul[T][1], temp_x_hat[T][1];
+       double temp_sub[T][1], temp_mul[T][1];
        subtract((double *)y, (double *)x_hat, (double *)temp_sub, T, 1);
        for (int i = 0; i < T; i++) {
            temp_mul[i][0] = temp_sub[i][0] * K_scalar;
@@ -326,6 +329,7 @@ int main(int argc, char *argv[]) {
        free(data[i]);
    }
    free(data);
+#if 0
    free(in1);
    free(in2);
    free(in3);
@@ -338,7 +342,7 @@ int main(int argc, char *argv[]) {
    free(in10);
    free(in11);
    free(in12);
-
+#endif
    fclose(output);
    return 0;
 }
