@@ -1,0 +1,47 @@
+#CC_FLAGS += -std=c99
+
+INCDIRS += \
+   inc \
+   src \
+   src/filter-c \
+   src/qrs_detector/c89
+
+# only build the shared object if dynamic option specified in V
+ifeq (1,$(V_dynamic))
+BUILD_DLLS = ecg_kalman
+endif
+
+BUILD_LIBS = ecg_kalman
+
+MAKE_D_2_LIBDIR = $(HEXAGON_SDK_ROOT)/libs/common/a1std/ship/$(V)
+
+ecg_kalman_C_SRCS += \
+   src/ecg_kalman \
+   src/matrix \
+   src/filter-c/filter \
+   src/qrs_detector/c89/qrs_filter \
+   src/qrs_detector/c89/qrs_detection
+
+BUILD_QEXES += ecg_kalman_q
+
+ecg_kalman_q_C_SRCS = src/ecg_kalman_test
+ecg_kalman_q_LIBS = rtld rpcmem test_main test_util ecg_kalman a1std atomic
+
+# if building shared object must also list it as a dependency to the qtest
+ifeq (1,$(V_dynamic))
+$V/ecg_kalman_q.ok: $V/ecg_kalman_q $V/ecg_kalman$(DLL_EXT)
+endif
+
+BUILD_COPIES = \
+   inc/ecg_kalman.h \
+   inc/matrix.h \
+   src/filter-c/filter.h \
+   src/qrs_detector/c89/qrs_filter.h \
+   src/qrs_detector/c89/qrs_detection.h \
+   $(DLLS) \
+   $(LIBS) \
+   $(SHIP_DIR)/ ;
+
+# always last
+include $(RULES_MIN)
+
