@@ -6,7 +6,6 @@
 
 #include "test_main.h"
 
-#include "HAP_perf.h"
 #include "HAP_farf.h"
 
 #include "ecg_kalman.h"
@@ -34,8 +33,7 @@ int main(int argc, char* argv[])
 
 int test_main_start(int argc, char *argv[])
 {
-   long long int cyclesStart;
-   long long int cyclesEnd;
+   int ecg_complex_length = 0;
    int nErr = TEST_SUCCESS;
 
    if (argc < 2) {
@@ -52,12 +50,12 @@ int test_main_start(int argc, char *argv[])
     *  Input can be provided by either cmdline arguments or if run as is, defaults are taken.
     */
    FILE *input = NULL;
-   FILE *output_preprocess = NULL;
+//   FILE *output_preprocess = NULL;
    FILE *output = NULL;
 
    // Use defaults
    input = fopen(argv[1], "r");
-   output_preprocess = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/preprocessed.csv", "w");
+//   output_preprocess = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/preprocessed.csv", "w");
    output = fopen(argv[2], "w");
 
    // Count rows and columns
@@ -80,10 +78,6 @@ int test_main_start(int argc, char *argv[])
        data[i] = (double *)malloc(cols * sizeof(double));
    }
 
-   double *output_data = (double *)malloc(rows * sizeof(double));
-
-   FARF(HIGH, " data and output_data allocated                                               ");
-
    // Read the CSV data into the array
    int i = 0, j = 0;
    while (fgets(line, sizeof(line), input) != NULL) {
@@ -101,31 +95,56 @@ int test_main_start(int argc, char *argv[])
 
    FARF(HIGH, "-- start lib test --                                                ");
 
-   FARF(HIGH, "Calling ecg_kalman(%10d)                                       ", (int)&nErr);
-   cyclesStart = HAP_perf_get_pcycles();
-   nErr = ecg_kalman_main((int)&nErr, data, rows, cols, output_data);
-   cyclesEnd = HAP_perf_get_pcycles();
+   // Preprocess the ECG data to get the value of T
+   FARF(HIGH, "ECG preprocessing starts...");
+   double **preprocessed_data = (double **)malloc(rows * sizeof(double *));
+   for (int i = 0; i < rows; i++) {
+       preprocessed_data[i] = (double *)malloc(cols * sizeof(double));
+   }
+   nErr = preprocess_ecg_data(data, rows, preprocessed_data, &ecg_complex_length);
+   FARF(HIGH, "ecg_complex_length (T) = %d", ecg_complex_length);
+   FARF(HIGH, "ECG preprocessing done.");
 
-   FARF(ALWAYS, "Calling ecg_kalman() took %10d cycles                          ", (int)(cyclesEnd - cyclesStart));
+   // Output for preprocessing stage
+//   for (int i = 0; i < rows; i++) {
+//       for (int j = 0; j < cols; j++) {
+//           if (j != (cols - 1)) {
+//               fprintf(output_preprocess, "%f%c", preprocessed_data[i][j], ',');
+//           } else {
+//               fprintf(output_preprocess, "%f", preprocessed_data[i][j]);
+//           }
+//       }
+//       fprintf(output_preprocess, "%c", '\n'); // New line after every row
+//   }
+
+   FARF(HIGH, "Calling process_kalman(%10d)                                       ", (int)&nErr);
+   int rem = rows % ecg_complex_length;
+   int output_bufsize = rows + ecg_complex_length - rem;
+   double *output_data = (double *)malloc(output_bufsize * sizeof(double));
+   nErr = process_kalman(preprocessed_data, rows, cols, ecg_complex_length, output_data);
+   FARF(ALWAYS, "process_kalman() complete.");
 
    if (nErr == (int)&nErr) {
      nErr = TEST_SUCCESS;
    } else {
-     FARF(ERROR, "ecg_kalman returned %10d instead of %10d", nErr, (int)&nErr);
+     FARF(ERROR, "process_kalman returned %10d instead of %10d", nErr, (int)&nErr);
      THROW(nErr, TEST_FAILURE);
    }
-   
+
    // Append the output buffer to output file
    for (int i = 0; i < rows; i++) {
        fprintf(output, "%f%c", output_data[i], '\n');
    }
 
    // Free the allocated memory
-   for (int i = 0; i < rows; i++) {
+   for (int i = rows-1; i >= 0; i++) {
+       free(preprocessed_data[i]);
        free(data[i]);
    }
+   free(preprocessed_data);
    free(data);
-   free(output);
+   free(output_data);
+   fclose(output);
 
    FARF(HIGH, "Test Passed                                                         ");
 

@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
     FILE *output = NULL;
     if (argc == 1) {
        // Use defaults
-       input = fopen("../../data/data_synthesized_8dB.csv", "r");
+       input = fopen("../../data/data_synthesized_0dB_64k.csv", "r");
        output_preprocess = fopen("../../data/output/preprocessed.csv", "w");
        output = fopen("../../data/output/clean_output.csv", "w");
     }

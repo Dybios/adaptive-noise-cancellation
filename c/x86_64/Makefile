@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Werror -O2 -g #-fsanitize=address
+CFLAGS = -Wall -Werror -O2 -g -fno-omit-frame-pointer
 LDLIBS = -lm
 
 ecg_kalman_test: ecg_kalman_test.o ecg_kalman.o matrix.o filter.o qrs_detection.o qrs_filter.o
@@ -21,5 +21,5 @@ qrs_filter.o: qrs_detector/c89/filter.c qrs_detector/c89/filter.h
 
 clean:
 	$(RM) ecg_kalman_test
-	$(RM) *.o filter-c/filter.o qrs_detector/c89/qrs_detection.o qrs_detector/c89/qrs_filter.o
+	$(RM) *.o filter-c/filter.o qrs_detector/c89/qrs_detection.o qrs_detector/c89/filter.o
 	$(RM) *.gch filter-c/*.gch qrs_detector/c89/*.gch

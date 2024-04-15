@@ -1,26 +1,124 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include <ctype.h>
-
-//#include "rpcmem.h"
 #include "matrix.h"
 #include "qrs_detector/c89/qrs_detection.h"
 #include "filter-c/filter.h"
 
-#include "HAP_farf.h"
+#include "ecg_kalman.h"
 
-#define USE_ION_MEMORY
-
-#define N 5 // Averaging for state vector
-#define ECG_LEADS 12
-
-static int T;
-
-int ecg_kalman_main(int nErr, double **data, int rows, int cols, double *output) {
+/** Preprocessing Stage (adis300)
+ *  The input ECG data is passed through a series of filters to remove noise, artifacts and baseline wander.
+ *  Filters implemented here:
+ *       High Pass Filter - 90Hz
+ *       Low Pass Filter - 0.5Hz
+ *       Band Stop Filter - 49 to 71Hz
+ *       # NOTE: The paper only states the usage of a notch filter centered around 50/60Hz to remove powerline
+ *         noise with a width relatively small, but wide enough to account for fluctuations in grid. In this program,
+ *         a good performance was observed with a bandstop/notch filter with a low half-pass of 49Hz and a high of 71Hz.
+ */
+int preprocess_ecg_data(double **data, int rows, double **preprocessed_output, int *ecg_complex_length) {
     double sampling_rate = 360.00;
 
+    /* High pass filter with 0.5Hz cutoff */
+    BWHighPass* hp_filter = create_bw_high_pass_filter(4, (int)sampling_rate, 0.5);
+    for (int i = 0; i < rows; i++) {
+        preprocessed_output[i][0] = bw_high_pass(hp_filter, data[i][0]);
+#if 1
+        preprocessed_output[i][1] = data[i][1];
+        preprocessed_output[i][2] = data[i][2];
+        preprocessed_output[i][3] = data[i][3];
+        preprocessed_output[i][4] = data[i][4];
+        preprocessed_output[i][5] = data[i][5];
+        preprocessed_output[i][6] = data[i][6];
+        preprocessed_output[i][7] = data[i][7];
+        preprocessed_output[i][8] = data[i][8];
+        preprocessed_output[i][9] = data[i][9];
+        preprocessed_output[i][10] = data[i][10];
+        preprocessed_output[i][11] = data[i][11];
+#endif
+
+#if 0 // Disable the above and use this when real inputs used for rest of the ECG leads
+        preprocessed_output[i][1] = bw_high_pass(hp_filter, data[i][1]);
+        preprocessed_output[i][2] = bw_high_pass(hp_filter, data[i][2]);
+        preprocessed_output[i][3] = bw_high_pass(hp_filter, data[i][3]);
+        preprocessed_output[i][4] = bw_high_pass(hp_filter, data[i][4]);
+        preprocessed_output[i][5] = bw_high_pass(hp_filter, data[i][5]);
+        preprocessed_output[i][6] = bw_high_pass(hp_filter, data[i][6]);
+        preprocessed_output[i][7] = bw_high_pass(hp_filter, data[i][7]);
+        preprocessed_output[i][8] = bw_high_pass(hp_filter, data[i][8]);
+        preprocessed_output[i][9] = bw_high_pass(hp_filter, data[i][9]);
+        preprocessed_output[i][10] = bw_high_pass(hp_filter, data[i][10]);
+        preprocessed_output[i][11] = bw_high_pass(hp_filter, data[i][11]);
+#endif
+    }
+    free_bw_high_pass(hp_filter);
+
+    /* Low pass filter with 0.5Hz cutoff */
+    BWLowPass* lp_filter = create_bw_low_pass_filter(4, (int)sampling_rate, 90);
+    for (int i = 0; i < rows; i++) {
+        preprocessed_output[i][0] = bw_low_pass(lp_filter, preprocessed_output[i][0]);
+
+#if 0 // Enable when real inputs used for rest of the ECG leads
+        preprocessed_output[i][1] = bw_low_pass(lp_filter, preprocessed_output[i][1]);
+        preprocessed_output[i][2] = bw_low_pass(lp_filter, preprocessed_output[i][2]);
+        preprocessed_output[i][3] = bw_low_pass(lp_filter, preprocessed_output[i][3]);
+        preprocessed_output[i][4] = bw_low_pass(lp_filter, preprocessed_output[i][4]);
+        preprocessed_output[i][5] = bw_low_pass(lp_filter, preprocessed_output[i][5]);
+        preprocessed_output[i][6] = bw_low_pass(lp_filter, preprocessed_output[i][6]);
+        preprocessed_output[i][7] = bw_low_pass(lp_filter, preprocessed_output[i][7]);
+        preprocessed_output[i][8] = bw_low_pass(lp_filter, preprocessed_output[i][8]);
+        preprocessed_output[i][9] = bw_low_pass(lp_filter, preprocessed_output[i][9]);
+        preprocessed_output[i][10] = bw_low_pass(lp_filter, preprocessed_output[i][10]);
+        preprocessed_output[i][11] = bw_low_pass(lp_filter, preprocessed_output[i][11]);
+#endif
+    }
+    free_bw_low_pass(lp_filter);
+
+    /* Notch filter centered around 50Hz for powerline/baseline wander */
+    BWBandStop* bs_filter = create_bw_band_stop_filter(4, (int)sampling_rate, 49, 71);
+    for (int i = 0; i < rows; i++) {
+        preprocessed_output[i][0] = bw_band_stop(bs_filter, preprocessed_output[i][0]);
+
+#if 0 // Enable when real inputs used for rest of the ECG leads
+        preprocessed_output[i][1] = bw_band_stop(bs_filter, preprocessed_output[i][1]);
+        preprocessed_output[i][2] = bw_band_stop(bs_filter, preprocessed_output[i][2]);
+        preprocessed_output[i][3] = bw_band_stop(bs_filter, preprocessed_output[i][3]);
+        preprocessed_output[i][4] = bw_band_stop(bs_filter, preprocessed_output[i][4]);
+        preprocessed_output[i][5] = bw_band_stop(bs_filter, preprocessed_output[i][5]);
+        preprocessed_output[i][6] = bw_band_stop(bs_filter, preprocessed_output[i][6]);
+        preprocessed_output[i][7] = bw_band_stop(bs_filter, preprocessed_output[i][7]);
+        preprocessed_output[i][8] = bw_band_stop(bs_filter, preprocessed_output[i][8]);
+        preprocessed_output[i][9] = bw_band_stop(bs_filter, preprocessed_output[i][9]);
+        preprocessed_output[i][10] = bw_band_stop(bs_filter, preprocessed_output[i][10]);
+        preprocessed_output[i][11] = bw_band_stop(bs_filter, preprocessed_output[i][11]);
+#endif
+    }
+    free_bw_band_stop(bs_filter);
+
+    /** QRS length detection for finding the value of T. (kosachevds)
+     *  In this paper, demarcation of ECG complex was defined as per 120% of the mean interval between consecutive
+     *  consecutive heartbeats found using QRS complex detection. While the paper has used PCA for QRS detection,
+     *  we found that the Pan-Tompkins algorithm is also sufficiently accurate in detecting the R waves with an error
+     *  of about 2%. For this project, the length between all R peaks is averaged and a 2% error is factored into it
+     *  for allowing overlap between ECG signals.
+     */
+    char result[rows]; // Dummy as we do not need this.
+    double *in = (double *) malloc(sizeof(double[rows]));
+    for (int i = 0; i < rows; i++) {
+        in[i] = preprocessed_output[i][0];
+    }
+    *ecg_complex_length = DetectQrsPeaks(in, rows, result, sampling_rate);
+    *ecg_complex_length -= 0.02 * (*ecg_complex_length);
+
+    return 0;
+}
+
+/** Kalman Filtering Stage:
+ *  Adaptive Kalman Filter operations based on Vullings, Vries & Bergmans' equations begin from here.
+ *  Core implentation logic and mathematical equations used here are directly based of the flow sequence
+ *  described by Vullings, Vries & Bergmans and mentioned in the supported project document. Instead of
+ *  using element-wise operations, all equations are directly operated on in their matrix form and
+ *  outputs are handled as scalars internally if needed.
+ */
+int process_kalman(double **data, int rows, int cols, int ecg_complex_length, double *output) {
     // Example: Print the array contents
     printf("rows (data/channel) = %d\tcols (channels) = %d\n", rows, cols);
 
@@ -58,54 +156,7 @@ int ecg_kalman_main(int nErr, double **data, int rows, int cols, double *output)
         in12[i] = data[i][11];
     }
 
-    /** Preprocessing Stage (adis300)
-     *  The input ECG data is passed through a series of filters to remove noise, artifacts and baseline wander.
-     *  Filters implemented here:
-     *       High Pass Filter - 90Hz
-     *       Low Pass Filter - 0.5Hz
-     *       Band Pass Filter - 4 to 61Hz
-     *       # NOTE: The paper only states the usage of a notch filter centered around 50/60Hz to remove powerline
-     *         noise with a width relatively small, but wide enough to account for fluctuations in grid. In this program,
-     *         a good performance was observed with a bandpass filter with a low half-pass of 4Hz and a high of 61Hz.
-     */
-    /* High pass filter with 0.5Hz cutoff */
-    BWHighPass* hp_filter = create_bw_high_pass_filter(4, (int)sampling_rate, 0.5);
-    for (int i = 0; i < rows; i++) {
-        in1[i] = bw_high_pass(hp_filter, in1[i]);
-    }
-    free_bw_high_pass(hp_filter);
-
-    /* Low pass filter with 0.5Hz cutoff */
-    BWLowPass* lp_filter = create_bw_low_pass_filter(4, (int)sampling_rate, 90);
-    for (int i = 0; i < rows; i++) {
-        in1[i] = bw_low_pass(lp_filter, in1[i]);
-    }
-    free_bw_low_pass(lp_filter);
-
-    /* Notch filter centered around 50Hz for powerline/baseline wander */
-    BWBandPass* bp_filter = create_bw_band_pass_filter(4, (int)sampling_rate, 4, 61);
-    for (int i = 0; i < rows; i++) {
-        in1[i] = bw_band_pass(bp_filter, in1[i]);
-    }
-    free_bw_band_pass(bp_filter);
-
-    // Output for preprocessing stage
-    //for (int i = 0; i < rows; i++) {
-    //   fprintf(output_preprocess, "%f%c", in1[i], '\n');
-    //}
-    //fprintf(output_preprocess, "\n");  // Add newline at the end of each row
-
-    /** QRS length detection for finding the value of T. (kosachevds)
-     *  In this paper, demarcation of ECG complex was defined as per 120% of the mean interval between consecutive
-     *  consecutive heartbeats found using QRS complex detection. While the paper has used PCA for QRS detection,
-     *  we found that the Pan-Tompkins algorithm is also sufficiently accurate in detecting the R waves with an error
-     *  of about 2%. For this project, the length between all R peaks is averaged and a 2% error is factored into it
-     *  for allowing overlap between ECG signals.
-     */
-    char result[rows]; // Dummy as we do not need this.
-    T = DetectQrsPeaks(in1, rows, result, sampling_rate);
-    T -= 0.02 * T;
-    printf("T = %d\n", T);
+    const int T = ecg_complex_length;
 
     /* Initialize all Kalman filter parameters here. */
     double x_hat[T][1];     // State vector
@@ -140,11 +191,6 @@ int ecg_kalman_main(int nErr, double **data, int rows, int cols, double *output)
     covariance((double *)x_hat, (double *)P_mat, T, 1);
     P = P_mat[0][0];
 
-    /** Adaptive Kalman Filter operations based on Vullings, Vries & Bergmans' equations begin from here.
-     *  Equations used here are directly based of the flow sequence described by Vullings, Vries & Bergmans and
-     *  mentioned in the supported project document. I nstead of using element-wise operations, all
-     *  equations are directly operated on in their matrix form and outputs are handled as scalars internally if needed.
-     */
     double y[T][1], y1[T][1], y2[T][1], y3[T][1],
           y4[T][1], y5[T][1], y6[T][1], y7[T][1],
           y8[T][1], y9[T][1], y10[T][1], y11[T][1];
@@ -258,12 +304,6 @@ int ecg_kalman_main(int nErr, double **data, int rows, int cols, double *output)
 //       print_matrix((double*)x_hat, T, 1);
 
        // Append the output buffer to output file
-       //for (int i = 0; i < T; i++) {
-       //    fprintf(output, "%f%c", x_hat[i][0], '\n');
-       //}
-       //fprintf(output, "\n");  // Add newline at the end of each row
-
-       // Return the estimated output
        for (int i = 0; i < T; i++) {
            output[i + (count * T)] = x_hat[i][0];
        }
@@ -283,5 +323,5 @@ int ecg_kalman_main(int nErr, double **data, int rows, int cols, double *output)
    free(in11);
    free(in12);
 
-   return nErr;
+   return 0;
 }
