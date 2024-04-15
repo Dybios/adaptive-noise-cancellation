@@ -18,80 +18,8 @@
 
 static int T;
 
-int ecg_kalman_main(int nErr, char *file_input, char *file_output) {
+int ecg_kalman_main(int nErr, double **data, int rows, int cols, double *output) {
     double sampling_rate = 360.00;
-    int rows = 0, cols = 0;
-    char line[ECG_LEADS * 100];
-
-    /** This section reads the files into the program memory.
-     *  Input can be provided by either cmdline arguments or if run as is, defaults are taken.
-     */
-    FILE *input = NULL;
-    FILE *output_preprocess = NULL;
-    FILE *output = NULL;
-
-    // Use defaults
-    input = fopen(file_input, "r");
-    output_preprocess = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/preprocessed.csv", "w");
-    output = fopen(file_output, "w");
-
-#if 0
-    if (argc == 1) {
-       // Use defaults
-       input = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/data_synthesized_0dB_64k.csv", "r");
-       output_preprocess = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/preprocessed.csv", "w");
-       output = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/clean_output.csv", "w");
-    }
-    else if (argc > 1 && argc < 3) {
-       printf("Not enough arguments.\n");
-       exit(1);
-    }
-    else if (argc > 3) {
-       printf("Too many arguments.\n");
-       exit(1);
-    }
-    else {
-       input = fopen(argv[1], "r");
-       output = fopen(argv[2], "w");
-       output_preprocess = fopen("../data/output/preprocessed.csv", "w");
-    }
-#endif
-
-    if (input == NULL || /*output_preprocess == NULL ||*/ output == NULL) {
-           printf("Cannot open file.\n");
-    }
-
-    // Count rows and columns
-    while (fgets(line, sizeof(line), input) != NULL) {
-        cols = 0;
-        char *token = strtok(line, ",");
-        while (token != NULL) {
-            cols++;
-            token = strtok(NULL, ",");
-        }
-        rows++; // data in each channel length
-    }
-
-    fseek(input, 0, SEEK_SET); // Move back to beginning of file
-
-    // Allocate memory for the 2D array
-    double **data = (double **)malloc(rows * sizeof(double *));
-    for (int i = 0; i < rows; i++) {
-        data[i] = (double *)malloc(cols * sizeof(double));
-    }
-
-    // Read the CSV data into the array
-    int i = 0, j = 0;
-    while (fgets(line, sizeof(line), input) != NULL) {
-        j = 0;
-        char *token = strtok(line, ",");
-        while (token != NULL) {
-            data[i][j++] = atof(token);
-            token = strtok(NULL, ",");
-        }
-        i++;
-    }
-    fclose(input);
 
     // Example: Print the array contents
     printf("rows (data/channel) = %d\tcols (channels) = %d\n", rows, cols);
@@ -162,10 +90,10 @@ int ecg_kalman_main(int nErr, char *file_input, char *file_output) {
     free_bw_band_pass(bp_filter);
 
     // Output for preprocessing stage
-    for (int i = 0; i < rows; i++) {
-       fprintf(output_preprocess, "%f%c", in1[i], '\n');
-    }
-    fprintf(output_preprocess, "\n");  // Add newline at the end of each row
+    //for (int i = 0; i < rows; i++) {
+    //   fprintf(output_preprocess, "%f%c", in1[i], '\n');
+    //}
+    //fprintf(output_preprocess, "\n");  // Add newline at the end of each row
 
     /** QRS length detection for finding the value of T. (kosachevds)
      *  In this paper, demarcation of ECG complex was defined as per 120% of the mean interval between consecutive
@@ -330,17 +258,18 @@ int ecg_kalman_main(int nErr, char *file_input, char *file_output) {
 //       print_matrix((double*)x_hat, T, 1);
 
        // Append the output buffer to output file
+       //for (int i = 0; i < T; i++) {
+       //    fprintf(output, "%f%c", x_hat[i][0], '\n');
+       //}
+       //fprintf(output, "\n");  // Add newline at the end of each row
+
+       // Return the estimated output
        for (int i = 0; i < T; i++) {
-           fprintf(output, "%f%c", x_hat[i][0], '\n');
+           output[i + (count * T)] = x_hat[i][0];
        }
-       fprintf(output, "\n");  // Add newline at the end of each row
    }
 
    // Free the allocated memory
-   for (int i = 0; i < rows; i++) {
-       free(data[i]);
-   }
-   free(data);
    free(in1);
    free(in2);
    free(in3);
@@ -353,7 +282,6 @@ int ecg_kalman_main(int nErr, char *file_input, char *file_output) {
    free(in10);
    free(in11);
    free(in12);
-   fclose(output);
 
    return nErr;
 }

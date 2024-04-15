@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-int ecg_kalman_main(int nErr, char *input_file, char *output_file);
+int ecg_kalman_main(int nErr, double **data, int rows, int cols, double *output);
 
 #ifdef __cplusplus
 }
