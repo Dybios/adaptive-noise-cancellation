@@ -22,31 +22,38 @@
 
 #define CATCH(exception) exception##bail: if (exception != TEST_SUCCESS)
 
+int test_main_start(int argc, char *argv[]);
+
+int main(void) {
+
+   int argc = 1;
+   char **argv = NULL;
+
+   test_main_start(argc, argv);
+}
+
 
 int test_main_start(int argc, char *argv[])
 {
    long long int cyclesStart;
    long long int cyclesEnd;
    int nErr = TEST_SUCCESS;
-//   FILE *input = NULL;
-//   FILE *output = NULL;
-
-   // Use defaults
-//   input = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/data_synthesized_0dB_64k.csv", "r");
-//   output = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/clean_output.csv", "w");
 
    if (argc < 2) {
       argv[1] = "/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/data_synthesized_0dB_64k.csv";
       argv[2] = "/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/clean_output.csv";
    }
+   FARF(HIGH, "argv[1] = %s", argv[1]);
+   FARF(HIGH, "argv[2] = %s", argv[2]);
+
    FARF(HIGH, "-- start lib test --                                                ");
 
-   FARF(HIGH, "Calling template_so(%10d)                                       ", (int)&nErr);
+   FARF(HIGH, "Calling ecg_kalman(%10d)                                       ", (int)&nErr);
    cyclesStart = HAP_perf_get_pcycles();
    nErr = ecg_kalman_main((int)&nErr, argv[1], argv[2]);
    cyclesEnd = HAP_perf_get_pcycles();
 
-   FARF(ALWAYS, "Calling template_so() took %10d cycles                          ", (int)(cyclesEnd - cyclesStart));
+   FARF(ALWAYS, "Calling ecg_kalman() took %10d cycles                          ", (int)(cyclesEnd - cyclesStart));
 
    if (nErr == (int)&nErr) {
      nErr = TEST_SUCCESS;

@@ -3,23 +3,25 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
-#include "rpcmem.h"
+
+//#include "rpcmem.h"
 #include "matrix.h"
 #include "qrs_detector/c89/qrs_detection.h"
 #include "filter-c/filter.h"
+
+#include "HAP_farf.h"
+
+#define USE_ION_MEMORY
 
 #define N 5 // Averaging for state vector
 #define ECG_LEADS 12
 
 static int T;
 
-int ecg_kalman_main(int nErr, char *input_file, char *output_file) {
+int ecg_kalman_main(int nErr, char *file_input, char *file_output) {
     double sampling_rate = 360.00;
     int rows = 0, cols = 0;
     char line[ECG_LEADS * 100];
-    int* test = 0;
-
-    rpcmem_init();
 
     /** This section reads the files into the program memory.
      *  Input can be provided by either cmdline arguments or if run as is, defaults are taken.
@@ -29,25 +31,9 @@ int ecg_kalman_main(int nErr, char *input_file, char *output_file) {
     FILE *output = NULL;
 
     // Use defaults
-    input = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/data_synthesized_0dB_64k.csv", "r");
+    input = fopen(file_input, "r");
     output_preprocess = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/preprocessed.csv", "w");
-    output = fopen("/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/clean_output.csv", "w");
-
-    // Get the total input size for ION mem
-    fseek(input, 0, SEEK_END);
-    int len = ftell(input);
-
-    int heapid = RPCMEM_HEAP_ID_SYSTEM;
-    #if defined(SLPI) || defined(MDSP)
-    heapid = RPCMEM_HEAP_ID_CONTIG;
-    #endif
-
-    if (0 == (test = (int*)rpcmem_alloc(heapid, RPCMEM_DEFAULT_FLAGS, len))) {
-        printf("---Error: alloc failed\n");
-	nErr = -1;
-        rpcmem_deinit();
-        return nErr;
-    }
+    output = fopen(file_output, "w");
 
 #if 0
     if (argc == 1) {
@@ -154,7 +140,6 @@ int ecg_kalman_main(int nErr, char *input_file, char *output_file) {
      *         noise with a width relatively small, but wide enough to account for fluctuations in grid. In this program,
      *         a good performance was observed with a bandpass filter with a low half-pass of 4Hz and a high of 61Hz.
      */
-
     /* High pass filter with 0.5Hz cutoff */
     BWHighPass* hp_filter = create_bw_high_pass_filter(4, (int)sampling_rate, 0.5);
     for (int i = 0; i < rows; i++) {
@@ -369,8 +354,6 @@ int ecg_kalman_main(int nErr, char *input_file, char *output_file) {
    free(in11);
    free(in12);
    fclose(output);
-
-   rpcmem_free(test);
 
    return nErr;
 }
