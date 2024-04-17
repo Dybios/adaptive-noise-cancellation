@@ -40,8 +40,8 @@ int test_main_start(int argc, char *argv[])
       argv[1] = "/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/data_synthesized_0dB_64k.csv";
       argv[2] = "/home/dybios/Qualcomm/Hexagon_SDK/3.5.4/examples/common/ecg_kalman/data/output/clean_output.csv";
    }
-   FARF(HIGH, "argv[1] = %s", argv[1]);
-   FARF(HIGH, "argv[2] = %s", argv[2]);
+   FARF(ALWAYS, "argv[1] = %s", argv[1]);
+   FARF(ALWAYS, "argv[2] = %s", argv[2]);
 
    int rows = 0, cols = 0;
    char line[100];
@@ -69,7 +69,6 @@ int test_main_start(int argc, char *argv[])
        rows++; // data in each channel length
    }
 
-   FARF(HIGH, " fopen done                                               ");
    fseek(input, 0, SEEK_SET); // Move back to beginning of file
    
    // Allocate memory for the 2D array
@@ -90,20 +89,18 @@ int test_main_start(int argc, char *argv[])
        i++;
    }
    
-   FARF(HIGH, " put into the array                                              ");
+   FARF(ALWAYS, " data in memory                                              ");
    fclose(input); 
 
-   FARF(HIGH, "-- start lib test --                                                ");
-
    // Preprocess the ECG data to get the value of T
-   FARF(HIGH, "ECG preprocessing starts...");
+   FARF(ALWAYS, "ECG preprocessing starts...");
    double **preprocessed_data = (double **)malloc(rows * sizeof(double *));
    for (int i = 0; i < rows; i++) {
        preprocessed_data[i] = (double *)malloc(cols * sizeof(double));
    }
    nErr = preprocess_ecg_data(data, rows, preprocessed_data, &ecg_complex_length);
-   FARF(HIGH, "ecg_complex_length (T) = %d", ecg_complex_length);
-   FARF(HIGH, "ECG preprocessing done.");
+   FARF(ALWAYS, "ecg_complex_length (T) = %d", ecg_complex_length);
+   FARF(ALWAYS, "ECG preprocessing done.");
 
    // Output for preprocessing stage
 //   for (int i = 0; i < rows; i++) {
@@ -117,7 +114,7 @@ int test_main_start(int argc, char *argv[])
 //       fprintf(output_preprocess, "%c", '\n'); // New line after every row
 //   }
 
-   FARF(HIGH, "Calling process_kalman(%10d)                                       ", (int)&nErr);
+   FARF(ALWAYS, "Calling process_kalman(%10d)                                       ", (int)&nErr);
    int rem = rows % ecg_complex_length;
    int output_bufsize = rows + ecg_complex_length - rem;
    double *output_data = (double *)malloc(output_bufsize * sizeof(double));
@@ -132,9 +129,9 @@ int test_main_start(int argc, char *argv[])
    }
 
    // Append the output buffer to output file
-   for (int i = 0; i < rows; i++) {
-       fprintf(output, "%f%c", output_data[i], '\n');
-   }
+//   for (int i = 0; i < rows; i++) {
+//       fprintf(output, "%f%c", output_data[i], '\n');
+//   }
 
    // Free the allocated memory
    for (int i = rows-1; i >= 0; i++) {
