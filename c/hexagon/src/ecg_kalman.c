@@ -14,8 +14,8 @@
  *         noise with a width relatively small, but wide enough to account for fluctuations in grid. In this program,
  *         a good performance was observed with a bandstop/notch filter with a low half-pass of 49Hz and a high of 71Hz.
  */
-int preprocess_ecg_data(double **data, int rows, double **preprocessed_output, int *ecg_complex_length) {
-    double sampling_rate = 360.00;
+int preprocess_ecg_data(float **data, int rows, float **preprocessed_output, int *ecg_complex_length) {
+    float sampling_rate = 360.00;
 
     /* High pass filter with 0.5Hz cutoff */
     BWHighPass* hp_filter = create_bw_high_pass_filter(4, (int)sampling_rate, 0.5);
@@ -118,42 +118,42 @@ int preprocess_ecg_data(double **data, int rows, double **preprocessed_output, i
  *  using element-wise operations, all equations are directly operated on in their matrix form and
  *  outputs are handled as scalars internally if needed.
  */
-int process_kalman(double **data, int rows, int cols, int ecg_complex_length, double *output) {
+int process_kalman(float **data, int rows, int cols, int ecg_complex_length, float *output) {
     const int T = ecg_complex_length;
 
     /* Initialize all Kalman filter parameters here. */
-    double x_hat[T][1];     // State vector
-    double Y[T][ECG_LEADS - 1];     // measurements without coeffs
-    double P;           // State covariance
-    double Q;           // Process noise covariance
-    double R;           // Measurement noise covariance
-    double K_scalar;     // Kalman gain
-    double w_hat[T][1];     // Measurement vector
+    float x_hat[T][1];     // State vector
+    float Y[T][ECG_LEADS - 1];     // measurements without coeffs
+    float P;           // State covariance
+    float Q;           // Process noise covariance
+    float R;           // Measurement noise covariance
+    float K_scalar;     // Kalman gain
+    float w_hat[T][1];     // Measurement vector
 
     // Initialize Q (Not explicitely needed)
     Q = 0.001;
 
     // Keep residual history across the looping filter
-    double model_residual_avg[T][1];
+    float model_residual_avg[T][1];
 
     // get aligned buffer loop counter
     int rem = rows % T;
     int loop_count = ((rows + T - rem) / T) - 1;
 
     // Initial state estimate (x_hat) and state covariance (P/psi) by taking average of the first N ECG complexes.
-    double x0[T][N];
+    float x0[T][N];
     for (int row = 0; row < T; row++) {
         for (int col = 0; col < N; col++) {
-            x0[row][col] = (double) data[row + (col * T)][0];
+            x0[row][col] = (float) data[row + (col * T)][0];
         }
     }
-    mean((double *)x0, (double *)x_hat, T, N, 1);
+    mean((float *)x0, (float *)x_hat, T, N, 1);
 
-    double P_mat[1][1];
-    covariance((double *)x_hat, (double *)P_mat, T, 1);
+    float P_mat[1][1];
+    covariance((float *)x_hat, (float *)P_mat, T, 1);
     P = P_mat[0][0];
 
-    double y[T][1];
+    float y[T][1];
 
     for (int count = 0; count < loop_count; count++) {
        /* Measurement matrix (ŵ) and Measurement covariance (R/Σ) */
@@ -161,7 +161,7 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
         *           where t denotes tranpose.
         *  Subscript -i ommitted for clarity.
         */
-       double y_inv[ECG_LEADS][ECG_LEADS], Y_transpose[ECG_LEADS][T], Y_res[ECG_LEADS][ECG_LEADS], Y_res2[1][T], y_coeff_hat[ECG_LEADS][1];
+       float y_inv[ECG_LEADS][ECG_LEADS], Y_transpose[ECG_LEADS][T], Y_res[ECG_LEADS][ECG_LEADS], Y_res2[1][T], y_coeff_hat[ECG_LEADS][1];
        for (int row = 0; row < T; row++) {
            // Update y
            y[row][0] = data[row + (count * T)][0];
@@ -180,27 +180,27 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
            Y[row][10] = data[row + (count * T)][11];
        }
 
-       transpose((double *)Y, (double *)Y_transpose, T, ECG_LEADS);
-       multiply((double *)Y_transpose, (double *)Y, (double *)Y_res, ECG_LEADS, T, ECG_LEADS);
-       inverse((double *)Y_res, (double *)y_inv, ECG_LEADS);
+       transpose((float *)Y, (float *)Y_transpose, T, ECG_LEADS);
+       multiply((float *)Y_transpose, (float *)Y, (float *)Y_res, ECG_LEADS, T, ECG_LEADS);
+       inverse((float *)Y_res, (float *)y_inv, ECG_LEADS);
        for (int rows = 0; rows < ECG_LEADS; rows++) {
            for (int cols = 0; cols < T; cols++) {
                Y_res2[rows][cols] = y_inv[rows][rows] * Y_transpose[rows][cols];
            }
        }
-       multiply((double *) Y_res2, (double *)y, (double *)y_coeff_hat, ECG_LEADS, T, 1);
+       multiply((float *) Y_res2, (float *)y, (float *)y_coeff_hat, ECG_LEADS, T, 1);
 
        /** EQ3: Measurement noise vector for ith signal, ŵ(i) = y(i) − ŷ(i)
         *           where, y = ith measured value of ECG complex
         *                  ŷ = ith estimated value of ECG complex
         */
-       double y_i_hat[T][1];
-       multiply((double *)Y, (double *)y_coeff_hat, (double *)y_i_hat, T, ECG_LEADS, 1);
-       subtract((double *)y, (double *) y_i_hat, (double *)w_hat, T, 1);
+       float y_i_hat[T][1];
+       multiply((float *)Y, (float *)y_coeff_hat, (float *)y_i_hat, T, ECG_LEADS, 1);
+       subtract((float *)y, (float *) y_i_hat, (float *)w_hat, T, 1);
 
        /* Updating measurement noise covariance R/sigma */
-       double R_mat[1][1];
-       covariance((double *)w_hat, (double*)R_mat, T, 1);
+       float R_mat[1][1];
+       covariance((float *)w_hat, (float*)R_mat, T, 1);
        R = R_mat[0][0];
 
        /** EQ9: Kalman Gain for (k+1)th reading, K(k + 1) = [Ψ(k) + Λ(k)] / [Σ(k +1) + Ψ(k) + Λ(k)]
@@ -216,12 +216,12 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
        /** EQ7: The next (k+1)th state estimate, x̂(k + 1) = x̂(k) + [K(k + 1) * [y(k + 1) − x̂(k)]]
         *  This updates the state estimate using the noisy input and the Kalman Gain previously calculated.
         */
-       double temp_sub[T][1], temp_mul[T][1];
-       subtract((double *)y, (double *)x_hat, (double *)temp_sub, T, 1);
+       float temp_sub[T][1], temp_mul[T][1];
+       subtract((float *)y, (float *)x_hat, (float *)temp_sub, T, 1);
        for (int i = 0; i < T; i++) {
            temp_mul[i][0] = temp_sub[i][0] * K_scalar;
        }
-       add((double *) x_hat, (double *)temp_mul, (double *)x_hat, T, 1);
+       add((float *) x_hat, (float *)temp_mul, (float *)x_hat, T, 1);
 
        /** EQ8: The (k+1)th state estimate covariance, Ψ(k + 1) = [Ψ(k) + Λ(k)] − [K(k + 1) * [Ψ(k) + Λ(k)]]
         */
@@ -231,17 +231,17 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
         *             ρ(k + 1) = y(k + 1) − E[y(k +1) | y(k), Λ(k), Σ(k)]
         *         or, ρ(k + 1) = y(k + 1) − x̂(k)
         */
-       double model_residual[T][1], residual_mean[T][1], residual_transpose[1][T], Q_coeff[1][1];
-       subtract((double *)y, (double *)x_hat, (double *) model_residual, T, 1);
-       add((double *)model_residual, (double *)model_residual_avg, (double *)residual_mean, T, 1);
+       float model_residual[T][1], residual_mean[T][1], residual_transpose[1][T], Q_coeff[1][1];
+       subtract((float *)y, (float *)x_hat, (float *) model_residual, T, 1);
+       add((float *)model_residual, (float *)model_residual_avg, (float *)residual_mean, T, 1);
        if (loop_count % N == 0) {
            for (int i = 0; i < T; i++) {
                residual_mean[i][0] = residual_mean[i][0] / N;
            }
        }
        memcpy(model_residual_avg, residual_mean, T);
-       transpose((double *)residual_mean, (double *)residual_transpose, T, 1);
-       multiply((double *)residual_transpose, (double *)residual_mean, (double *)Q_coeff, 1, T, 1);
+       transpose((float *)residual_mean, (float *)residual_transpose, T, 1);
+       multiply((float *)residual_transpose, (float *)residual_mean, (float *)Q_coeff, 1, T, 1);
 
        /** EQ14: The process noise covariance, λ̂ in its scalar form is given as,
         *           λ̂(k) = [(1/T) * ρt(k + 1) * ρ(k + 1)] − ψ(k) − σ(k + 1)  ; if positive,
@@ -249,7 +249,7 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
         */
        Q = fmax(0, (Q_coeff[0][0] / T) - P - R);
 
-//       print_matrix((double*)x_hat, T, 1);
+//       print_matrix((float*)x_hat, T, 1);
 
        // Append the output buffer to output file
        for (int i = 0; i < T; i++) {

@@ -2,7 +2,7 @@
 //#define DEBUG
 
 // Function to add two matrices
-void add(double *mat1, double *mat2, double *result, int rows, int cols) {
+void add(float *mat1, float *mat2, float *result, int rows, int cols) {
     for(int i=0; i<rows; i++) {
         for(int j=0; j<cols; j++) {
             *(result + i*cols + j) = *(mat1 + i*cols + j) + *(mat2 + i*cols + j);
@@ -11,7 +11,7 @@ void add(double *mat1, double *mat2, double *result, int rows, int cols) {
 }
 
 // Function to subtract two matrices
-void subtract(double *mat1, double *mat2, double *result, int rows, int cols) {
+void subtract(float *mat1, float *mat2, float *result, int rows, int cols) {
     for(int i=0; i<rows; i++) {
         for(int j=0; j<cols; j++) {
             *(result + i*cols + j) = *(mat1 + i*cols + j) - *(mat2 + i*cols + j);
@@ -20,7 +20,7 @@ void subtract(double *mat1, double *mat2, double *result, int rows, int cols) {
 }
 
 // Function to multiply two matrices
-void multiply(double *mat1, double *mat2, double *result, int rows1, int cols1, int cols2) {
+void multiply(float *mat1, float *mat2, float *result, int rows1, int cols1, int cols2) {
     for(int i=0; i<rows1; i++) {
         for(int j=0; j<cols2; j++) {
             *(result + i*cols2 + j) = 0;
@@ -32,7 +32,7 @@ void multiply(double *mat1, double *mat2, double *result, int rows1, int cols1, 
 }
 
 // Function to print a matrix
-void print_matrix(double *mat, int rows, int cols) {
+void print_matrix(float *mat, int rows, int cols) {
     for(int i=0; i<rows; i++) {
         for(int j=0; j<cols; j++) {
             printf("%f ", *(mat + i*cols + j));
@@ -42,18 +42,18 @@ void print_matrix(double *mat, int rows, int cols) {
 }
 
 // Function to get determinant of matrix
-double determinant(double *mat, int n)
+float determinant(float *mat, int n)
 {
 #ifdef DEBUG
     printf("Incoming Matrix To Determinant\n");
     print_matrix(mat, n, n);
 #endif
 
-    double det = 1.0;
+    float det = 1.0;
     int sign = 1;
 
     // Create a local copy of the mat
-    double temp[n][n];
+    float temp[n][n];
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             temp[i][j] = *(mat + i*n + j);
@@ -74,7 +74,7 @@ double determinant(double *mat, int n)
             }
 
             for (int j = i; j < n; j++) {
-                double val = temp[i][j];
+                float val = temp[i][j];
                 temp[i][j] = temp[k][j];
                 temp[k][j] = val;
             }
@@ -84,7 +84,7 @@ double determinant(double *mat, int n)
 
         // Perform row operations to make the elements below the pivot element zero
         for (int j = i + 1; j < n; j++) {
-            double ratio = temp[j][i] / temp[i][i];
+            float ratio = temp[j][i] / temp[i][i];
             for (int k = i; k < n; k++) {
                 temp[j][k] -= ratio * temp[i][k];
             }
@@ -100,7 +100,7 @@ double determinant(double *mat, int n)
 }
 
 // Function to get transpose of a matrix
-void transpose(double *matrix, double *result, int rows, int cols)
+void transpose(float *matrix, float *result, int rows, int cols)
 {
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
@@ -110,13 +110,13 @@ void transpose(double *matrix, double *result, int rows, int cols)
 }
 
 // Function to calculate the adjoint matrix
-void adjoint(double *matrix, double *adjointMatrix, int n) {
+void adjoint(float *matrix, float *adjointMatrix, int n) {
 #ifdef DEBUG
     printf("Incoming original to adjoint\n");
     print_matrix(matrix, n, n);
 #endif
 
-    double temp[n-1][n-1];
+    float temp[n-1][n-1];
     int sign = 1;
 
     for (int i = 0; i < n; i++) {
@@ -141,7 +141,7 @@ void adjoint(double *matrix, double *adjointMatrix, int n) {
 
             // Calculate the determinant of the submatrix
 
-            *(adjointMatrix + j*n + i) = sign * determinant((double *)temp, n-1);
+            *(adjointMatrix + j*n + i) = sign * determinant((float *)temp, n-1);
         }
     }
 
@@ -152,25 +152,25 @@ void adjoint(double *matrix, double *adjointMatrix, int n) {
 }
 
 // Function to calculate the inverse of a matrix
-void inverse(double *matrix, double *inverseMatrix, int n) {
+void inverse(float *matrix, float *inverseMatrix, int n) {
 #ifdef DEBUG
     printf("Incoming Matrix\n");
     print_matrix(matrix, n, n);
 #endif
 
-    double det = determinant(matrix, n);
+    float det = determinant(matrix, n);
 #ifdef DEBUG
     printf("Determinant = %f", det);
 #endif
 
-    double adjointMatrix[n][n];
+    float adjointMatrix[n][n];
 
     if (det == 0) {
         return;
     }
 
     // adjoint
-    adjoint(matrix, (double *)adjointMatrix, n);
+    adjoint(matrix, (float *)adjointMatrix, n);
 
     // Invert
     for (int i = 0; i < n; i++) {
@@ -181,8 +181,8 @@ void inverse(double *matrix, double *inverseMatrix, int n) {
 }
 
 // Function to calculate the covariance of a matrix
-void covariance(double *matrix, double *covariance_mat, int rows, int cols) {
-    double mean[rows];
+void covariance(float *matrix, float *covariance_mat, int rows, int cols) {
+    float mean[rows];
 
     // Calculate column-wise mean
     for (int j = 0; j < cols; j++) {
@@ -195,7 +195,7 @@ void covariance(double *matrix, double *covariance_mat, int rows, int cols) {
     // Calculate covariance
     for (int j = 0; j < cols; j++) {
         for (int k = 0; k < cols; k++) {
-            double cov = 0;
+            float cov = 0;
             for (int i = 0; i < rows; i++) {
                 cov += (*(matrix + i*cols + j) - mean[j]) * (*(matrix + i*cols + k) - mean[k]);
             }
@@ -206,11 +206,11 @@ void covariance(double *matrix, double *covariance_mat, int rows, int cols) {
 
 
 // Function to calculate the mean of a matrix; 1 = column mean, 2 = row mean
-void mean(double *matrix, double *result, int rows, int cols, int flag) {
+void mean(float *matrix, float *result, int rows, int cols, int flag) {
     if (flag == 1) {
         // Calculate the sum of the elements in a row
         for (int row_count = 0; row_count < rows; row_count++) {
-            double sum = 0;
+            float sum = 0;
             for (int col_count = 0; col_count < cols; col_count++) {
                 sum += *(matrix + row_count * cols + col_count);
             }
@@ -222,7 +222,7 @@ void mean(double *matrix, double *result, int rows, int cols, int flag) {
     else if (flag == 2) {
         // Calculate the sum of the elements in the column
         for (int col_count = 0; col_count < cols; col_count++) {
-            double sum = 0;
+            float sum = 0;
             for (int row_count = 0; row_count < rows; row_count++) {
                 sum += *(matrix + row_count * cols + col_count);
             }

@@ -70,11 +70,11 @@ int test_main_start(int argc, char *argv[])
    }
 
    fseek(input, 0, SEEK_SET); // Move back to beginning of file
-   
+
    // Allocate memory for the 2D array
-   double **data = (double **)malloc(rows * sizeof(double *));
+   float **data = (float **)malloc(rows * sizeof(float *));
    for (int i = 0; i < rows; i++) {
-       data[i] = (double *)malloc(cols * sizeof(double));
+       data[i] = (float *)malloc(cols * sizeof(float));
    }
 
    // Read the CSV data into the array
@@ -88,15 +88,15 @@ int test_main_start(int argc, char *argv[])
        }
        i++;
    }
-   
+
    FARF(ALWAYS, " data in memory                                              ");
-   fclose(input); 
+   fclose(input);
 
    // Preprocess the ECG data to get the value of T
    FARF(ALWAYS, "ECG preprocessing starts...");
-   double **preprocessed_data = (double **)malloc(rows * sizeof(double *));
+   float **preprocessed_data = (float **)malloc(rows * sizeof(float *));
    for (int i = 0; i < rows; i++) {
-       preprocessed_data[i] = (double *)malloc(cols * sizeof(double));
+       preprocessed_data[i] = (float *)malloc(cols * sizeof(float));
    }
    nErr = preprocess_ecg_data(data, rows, preprocessed_data, &ecg_complex_length);
    FARF(ALWAYS, "ecg_complex_length (T) = %d", ecg_complex_length);
@@ -117,7 +117,7 @@ int test_main_start(int argc, char *argv[])
    FARF(ALWAYS, "Calling process_kalman(%10d)                                       ", (int)&nErr);
    int rem = rows % ecg_complex_length;
    int output_bufsize = rows + ecg_complex_length - rem;
-   double *output_data = (double *)malloc(output_bufsize * sizeof(double));
+   float *output_data = (float *)malloc(output_bufsize * sizeof(float));
    nErr = process_kalman(preprocessed_data, rows, cols, ecg_complex_length, output_data);
    FARF(ALWAYS, "process_kalman() complete.");
 
@@ -134,7 +134,7 @@ int test_main_start(int argc, char *argv[])
 //   }
 
    // Free the allocated memory
-   for (int i = rows-1; i >= 0; i++) {
+   for (int i = 0; i < rows; i++) {
        free(preprocessed_data[i]);
        free(data[i]);
    }

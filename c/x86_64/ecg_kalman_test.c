@@ -51,9 +51,9 @@ int main(int argc, char *argv[])
    fseek(input, 0, SEEK_SET); // Move back to beginning of file
 
    // Allocate memory for the 2D array
-   double **data = (double **)malloc(rows * sizeof(double *));
+   float **data = (float **)malloc(rows * sizeof(float *));
    for (int i = 0; i < rows; i++) {
-       data[i] = (double *)malloc(cols * sizeof(double));
+       data[i] = (float *)malloc(cols * sizeof(float));
    }
 
    // Read the CSV data into the array
@@ -71,9 +71,9 @@ int main(int argc, char *argv[])
 
    // Preprocess the ECG data to get the value of T
    printf("ECG preprocessing starts...\n");
-   double **preprocessed_data = (double **)malloc(rows * sizeof(double *));
+   float **preprocessed_data = (float **)malloc(rows * sizeof(float *));
    for (int i = 0; i < rows; i++) {
-       preprocessed_data[i] = (double *)malloc(cols * sizeof(double));
+       preprocessed_data[i] = (float *)malloc(cols * sizeof(float));
    }
    nErr = preprocess_ecg_data(data, rows, preprocessed_data, &ecg_complex_length);
    printf("ecg_complex_length (T) = %d\n", ecg_complex_length);
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
    printf("process_kalman main process starts...\n");
    int rem = (int)rows % ecg_complex_length;
    int output_bufsize = rows + ecg_complex_length - rem;
-   double *output_data = (double *)malloc(output_bufsize * sizeof(double));
+   float *output_data = (float *)malloc(output_bufsize * sizeof(float));
    nErr = process_kalman(preprocessed_data, rows, cols, ecg_complex_length, output_data);
    printf("process_kalman completed. Writing to file...\n");
 

@@ -7,29 +7,29 @@
 #include <stdio.h>
 
 // Function to print a matrix
-void print_matrix(double *mat, int rows, int cols);
+void print_matrix(float *mat, int rows, int cols);
 
 // Function to add two matrices
-void add(double *mat1, double *mat2, double *result, int rows, int cols);
+void add(float *mat1, float *mat2, float *result, int rows, int cols);
 
 // Function to subtract two matrices
-void subtract(double *mat1, double *mat2, double *result, int rows, int cols);
+void subtract(float *mat1, float *mat2, float *result, int rows, int cols);
 
 // Function to multiply two matrices
-void multiply(double *mat1, double *mat2, double *result, int rows1, int cols1, int cols2);
+void multiply(float *mat1, float *mat2, float *result, int rows1, int cols1, int cols2);
 
 // Function to find the determinant of a square matrix
-double determinant(double *matrix, int size);
+float determinant(float *matrix, int size);
 
 // Function to find transpose of a matrix
-void transpose(double *matrix, double *result, int rows, int cols);
+void transpose(float *matrix, float *result, int rows, int cols);
 
 // Function to find inverse of a matrix
-void inverse(double *matrix, double *inverted_matrix, int size);
+void inverse(float *matrix, float *inverted_matrix, int size);
 
 // Function to find the covariance of a matrix
-void covariance(double *matrix, double *covariance_mat, int rows, int cols);
+void covariance(float *matrix, float *covariance_mat, int rows, int cols);
 
 // Function to find the mean of a matrix (row/column)
-void mean(double *matrix, double *result, int rows, int cols, int flag);
+void mean(float *matrix, float *result, int rows, int cols, int flag);
 
