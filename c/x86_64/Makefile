@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Werror -O2 -g -fno-omit-frame-pointer
+CFLAGS = -Wall -Werror -O2 -fno-omit-frame-pointer
 LDLIBS = -lm
 
 ecg_kalman_test: ecg_kalman_test.o ecg_kalman.o matrix.o filter.o qrs_detection.o qrs_filter.o

@@ -119,43 +119,6 @@ int preprocess_ecg_data(double **data, int rows, double **preprocessed_output, i
  *  outputs are handled as scalars internally if needed.
  */
 int process_kalman(double **data, int rows, int cols, int ecg_complex_length, double *output) {
-    // Example: Print the array contents
-    printf("rows (data/channel) = %d\tcols (channels) = %d\n", rows, cols);
-
-    /** Once the data is stored in array, sort the data by channel onto individal arrays.
-     *  These are later used as inputs for filter operation.
-     */
-    // read the 12 lead ECG data to 12 input channels
-    double *in1, *in2, *in3, *in4, *in5, *in6,
-           *in7, *in8, *in9, *in10, *in11, *in12;
-    in1 = (double *) malloc(sizeof(double[rows]));
-    in2 = (double *) malloc(sizeof(double[rows]));
-    in3 = (double *) malloc(sizeof(double[rows]));
-    in4 = (double *) malloc(sizeof(double[rows]));
-    in5 = (double *) malloc(sizeof(double[rows]));
-    in6 = (double *) malloc(sizeof(double[rows]));
-    in7 = (double *) malloc(sizeof(double[rows]));
-    in8 = (double *) malloc(sizeof(double[rows]));
-    in9 = (double *) malloc(sizeof(double[rows]));
-    in10 = (double *) malloc(sizeof(double[rows]));
-    in11 = (double *) malloc(sizeof(double[rows]));
-    in12 = (double *) malloc(sizeof(double[rows]));
-
-    for (int i = 0; i < rows; i++) {
-        in1[i] = data[i][0];
-        in2[i] = data[i][1];
-        in3[i] = data[i][2];
-        in4[i] = data[i][3];
-        in5[i] = data[i][4];
-        in6[i] = data[i][5];
-        in7[i] = data[i][6];
-        in8[i] = data[i][7];
-        in9[i] = data[i][8];
-        in10[i] = data[i][9];
-        in11[i] = data[i][10];
-        in12[i] = data[i][11];
-    }
-
     const int T = ecg_complex_length;
 
     /* Initialize all Kalman filter parameters here. */
@@ -175,14 +138,13 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
 
     // get aligned buffer loop counter
     int rem = rows % T;
-    int loop_count = (rows + T - rem) / T;
-    printf("Loop count = %d\n", loop_count);
+    int loop_count = ((rows + T - rem) / T) - 1;
 
     // Initial state estimate (x_hat) and state covariance (P/psi) by taking average of the first N ECG complexes.
     double x0[T][N];
     for (int row = 0; row < T; row++) {
         for (int col = 0; col < N; col++) {
-            x0[row][col] = (double) in1[row + (col * T)];
+            x0[row][col] = (double) data[row + (col * T)][0];
         }
     }
     mean((double *)x0, (double *)x_hat, T, N, 1);
@@ -191,45 +153,31 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
     covariance((double *)x_hat, (double *)P_mat, T, 1);
     P = P_mat[0][0];
 
-    double y[T][1], y1[T][1], y2[T][1], y3[T][1],
-          y4[T][1], y5[T][1], y6[T][1], y7[T][1],
-          y8[T][1], y9[T][1], y10[T][1], y11[T][1];
+    double y[T][1];
 
     for (int count = 0; count < loop_count; count++) {
        /* Measurement matrix (ŵ) and Measurement covariance (R/Σ) */
-       // Get T samples into separate yk buffers
-       for (int i = 0; i < T; i++) {
-          y[i][0] = in1[i + (count * T)];
-          y1[i][0] = in2[i + (count * T)];
-          y2[i][0] = in3[i + (count * T)];
-          y3[i][0] = in4[i + (count * T)];
-          y4[i][0] = in5[i + (count * T)];
-          y5[i][0] = in6[i + (count * T)];
-          y6[i][0] = in7[i + (count * T)];
-          y7[i][0] = in8[i + (count * T)];
-          y8[i][0] = in9[i + (count * T)];
-          y9[i][0] = in10[i + (count * T)];
-          y10[i][0] = in11[i + (count * T)];
-          y11[i][0] = in12[i + (count * T)];
-       }
-
        /** EQ4: Coefficients of estimate γ̂ = [Yt * Y]^−1 * Yt * y(i)
         *           where t denotes tranpose.
         *  Subscript -i ommitted for clarity.
         */
        double y_inv[ECG_LEADS][ECG_LEADS], Y_transpose[ECG_LEADS][T], Y_res[ECG_LEADS][ECG_LEADS], Y_res2[1][T], y_coeff_hat[ECG_LEADS][1];
        for (int row = 0; row < T; row++) {
-           Y[row][0] = y1[row][0];
-           Y[row][1] = y2[row][0];
-           Y[row][2] = y3[row][0];
-           Y[row][3] = y4[row][0];
-           Y[row][4] = y5[row][0];
-           Y[row][5] = y6[row][0];
-           Y[row][6] = y7[row][0];
-           Y[row][7] = y8[row][0];
-           Y[row][8] = y9[row][0];
-           Y[row][9] = y10[row][0];
-           Y[row][10] = y11[row][0];
+           // Update y
+           y[row][0] = data[row + (count * T)][0];
+
+           // Update the measurement matrix
+           Y[row][0] = data[row + (count * T)][1];
+           Y[row][1] = data[row + (count * T)][2];
+           Y[row][2] = data[row + (count * T)][3];
+           Y[row][3] = data[row + (count * T)][4];
+           Y[row][4] = data[row + (count * T)][5];
+           Y[row][5] = data[row + (count * T)][6];
+           Y[row][6] = data[row + (count * T)][7];
+           Y[row][7] = data[row + (count * T)][8];
+           Y[row][8] = data[row + (count * T)][9];
+           Y[row][9] = data[row + (count * T)][10];
+           Y[row][10] = data[row + (count * T)][11];
        }
 
        transpose((double *)Y, (double *)Y_transpose, T, ECG_LEADS);
@@ -308,20 +256,6 @@ int process_kalman(double **data, int rows, int cols, int ecg_complex_length, do
            output[i + (count * T)] = x_hat[i][0];
        }
    }
-
-   // Free the allocated memory
-   free(in1);
-   free(in2);
-   free(in3);
-   free(in4);
-   free(in5);
-   free(in6);
-   free(in7);
-   free(in8);
-   free(in9);
-   free(in10);
-   free(in11);
-   free(in12);
 
    return 0;
 }

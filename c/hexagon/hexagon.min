@@ -1,3 +1,5 @@
+_OPT = -O2
+
 INCDIRS += \
    inc \
    src \
